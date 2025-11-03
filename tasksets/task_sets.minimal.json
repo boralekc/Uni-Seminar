@@ -1,0 +1,7 @@
+{
+  "name": "minimal",
+  "tasks": [
+    { "id": "search_product", "description": "Find a product by name", "max_steps": 15 },
+    { "id": "add_to_cart",   "description": "Add product to cart",     "max_steps": 20 }
+  ]
+}

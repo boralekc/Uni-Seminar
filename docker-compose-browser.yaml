@@ -1,0 +1,47 @@
+name: webmall-agents-browser
+
+services:
+  runner:
+    build:
+      context: ./runner
+    image: webmall/runner:latest
+    env_file: .env
+    environment:
+      - WEBMALL_BASE_URL=${WEBMALL_BASE_URL}
+      - TASKSET_PATH=/app/tasksets_override/task_sets.json
+      - RESULTS_DIR=/app/results
+    volumes:
+      - ./tasksets:/app/tasksets_override:ro
+      - ./results:/app/results
+    networks:
+      - labnet
+      - webmall_ext
+    profiles: [ "runner" ]
+    command: ["bash","-lc","python -u main.py --help || true; tail -f /dev/null"]
+
+  browseragent:
+    build:
+      context: .
+      dockerfile: ./docker/BrowserAgent.Dockerfile
+    image: browseragent:${BROWSER_TAG:-dev}
+    env_file: .env
+    environment:
+      - WEBMALL_BASE_URL=${WEBMALL_BASE_URL}
+      - TASKSET_PATH=/tasksets/task_sets.json
+      - RESULTS_DIR=/results/browser
+    volumes:
+      - ./tasksets:/tasksets:ro
+      - ./results/browser:/results/browser
+    networks:
+      - labnet
+      - webmall_ext
+    profiles: [ "agents" ]
+    command: ["bash","-lc","echo 'BrowserAgent container ready'; tail -f /dev/null"]
+
+networks:
+  labnet:
+    external: true
+    name: ${NETWORK}
+  webmall_ext:
+    external: true
+    name: ${WEBMALL_NET}

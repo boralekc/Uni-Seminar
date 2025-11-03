@@ -1,64 +1,96 @@
+# ---- vars ----
 NETWORK ?= webmall_net
+ENV ?= .env
 
+BROWSER_COMPOSE ?= docker-compose-browser.yaml
+BROWSER_PROJ ?= webmall-agents-browser
+
+OCCAM_COMPOSE   ?= docker-compose-occam.yaml
+OCCAM_PROJ ?= webmall-agents-occam
+
+WEBMALL_REPO ?= external/WebMall/docker_all
+
+# ---- common ----
 .PHONY: net
 net:
 	docker network create $(NETWORK) || true
 
-# локальный режим (агенты + локальный webmall при необходимости)
-.PHONY: up-local
-up-local: net
-	docker compose -f compose/compose.base.yml -f compose/compose.local.yml up -d
+.PHONY: submodules-init
+submodules-init:
+	git submodule update --init --recursive
 
-.PHONY: up-local-with-webmall
-up-local-with-webmall: net
-	docker compose -f compose/compose.webmall.local.yml up -d
-	docker compose -f compose/compose.base.yml -f compose/compose.local.yml up -d
+.PHONY: submodules-update
+submodules-update:
+	git submodule update --remote --recursive
 
-# vpn режим (агенты, webmall внешний)
-.PHONY: up-vpn
-up-vpn: net
-	docker compose -f compose/compose.base.yml -f compose/compose.vpn.yml up -d
+# ---- WebMall local (их compose) ----
+.PHONY: up-local-webmall
+up-local-webmall:
+	@[ -d "$(WEBMALL_REPO)" ] || (echo "Submodule $(WEBMALL_REPO) not found"; exit 1)
+	cd $(WEBMALL_REPO) && docker compose up -d
+	@echo ">>> Set WEBMALL_BASE_URL in .env to local URL (e.g., http://localhost:8080)"
 
-.PHONY: down
-down:
-	docker compose -f compose/compose.base.yml down
-	docker compose -f compose/compose.webmall.local.yml down || true
+# ---- Browser stack ----
+.PHONY: up-browser
+up-browser: net
+	COMPOSE_PROFILES=$${COMPOSE_PROFILES:-runner,agents} \
+	docker compose -p $(BROWSER_PROJ) -f $(BROWSER_COMPOSE) --env-file $(ENV) up -d --build
 
-.PHONY: logs
-logs:
-	docker compose -f compose/compose.base.yml logs -f
+.PHONY: down-browser
+down-browser:
+	docker compose -p $(BROWSER_PROJ) -f $(BROWSER_COMPOSE) --env-file $(ENV) down
 
-.PHONY: ps
-ps:
-	docker compose -f compose/compose.base.yml ps
+.PHONY: ps-browser
+ps-browser:
+	docker compose -p $(BROWSER_PROJ) -f $(BROWSER_COMPOSE) ps
 
-REPO_DIR ?= $(HOME)/WebMall
-NETWORK  ?= webmall_net
-CONTAINER_FRONT ?= WebMall_frontend
+.PHONY: logs-browser
+logs-browser:
+	docker compose -p $(BROWSER_PROJ) -f $(BROWSER_COMPOSE) logs -f --tail=200
 
-.PHONY: webmall-up
-webmall-up:
-	@set -euo pipefail; \
-	echo "[i] Using REPO_DIR=$(REPO_DIR), NETWORK=$(NETWORK)"; \
-	if [ -d "$(REPO_DIR)/.git" ]; then \
-	  echo "[i] Repo exists: $(REPO_DIR) — pulling latest..."; \
-	  git -C "$(REPO_DIR)" pull --ff-only; \
-	  git -C "$(REPO_DIR)" submodule update --init --recursive; \
-	else \
-	  echo "[i] Cloning WebMall into $(REPO_DIR) ..."; \
-	  git clone --recurse-submodules https://github.com/wbsg-uni-mannheim/WebMall.git "$(REPO_DIR)"; \
-	fi; \
-	if [ ! -f "$(REPO_DIR)/.env" ]; then \
-	  echo "[i] Creating $(REPO_DIR)/.env from example..."; \
-	  cp "$(REPO_DIR)/.env.example" "$(REPO_DIR)/.env"; \
-	fi; \
-	cd "$(REPO_DIR)/docker_all"; \
-	docker compose up -d; \
-	docker network create "$(NETWORK)" || true; \
-	docker network connect "$(NETWORK)" "$(CONTAINER_FRONT)" || true; \
-	echo "\n[✓] WebMall is up. Use WEBMALL_BASE_URL=http://webmall_frontend:80\n"; \
-	docker compose ps
+# ---- Occam stack ----
+.PHONY: up-occam
+up-occam: net
+	COMPOSE_PROFILES=$${COMPOSE_PROFILES:-runner,agents} \
+	docker compose -p $(OCCAM_PROJ) -f $(OCCAM_COMPOSE) --env-file $(ENV) up -d --build
 
-.PHONY: webmall-down
-webmall-down:
-	@cd "$(REPO_DIR)/docker_all" && docker compose down || true
+.PHONY: down-occam
+down-occam:
+	docker compose -p $(OCCAM_PROJ) -f $(OCCAM_COMPOSE) --env-file $(ENV) down
+
+.PHONY: ps-occam
+ps-occam:
+	docker compose -p $(OCCAM_PROJ) -f $(OCCAM_COMPOSE) ps
+
+.PHONY: logs-occam
+logs-occam:
+	docker compose -p $(OCCAM_PROJ) -f $(OCCAM_COMPOSE) logs -f --tail=200
+
+# ---- both stacks helpers ----
+.PHONY: up-both
+up-both: up-browser up-occam
+
+.PHONY: down-both
+down-both: down-browser down-occam
+
+# ---- quick runs via runner (каждый стэк имеет свой runner) ----
+.PHONY: run-browser
+run-browser:
+	docker compose -p $(BROWSER_PROJ) -f $(BROWSER_COMPOSE) exec runner \
+	  python -u main.py run \
+	    --agent browser \
+	    --base-url "$$(grep -E '^WEBMALL_BASE_URL=' $(ENV) | cut -d= -f2-)" \
+	    --taskset "$$(grep -E '^TASKSET_PATH=' $(ENV) | cut -d= -f2-)" \
+	    --episodes $${EPISODES:-3} \
+	    --output "$$(grep -E '^RESULTS_DIR=' $(ENV) | cut -d= -f2-)/browser"
+
+.PHONY: run-occam
+run-occam:
+	docker compose -p $(OCCAM_PROJ) -f $(OCCAM_COMPOSE) exec runner \
+	  python -u main.py run \
+	    --agent occam \
+	    --base-url "$$(grep -E '^WEBMALL_BASE_URL=' $(ENV) | cut -d= -f2-)" \
+	    --taskset "$$(grep -E '^TASKSET_PATH=' $(ENV) | cut -d= -f2-)" \
+	    --episodes $${EPISODES:-3} \
+	    --output "$$(grep -E '^RESULTS_DIR=' $(ENV) | cut -d= -f2-)/occam"
+
