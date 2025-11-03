@@ -1,0 +1,9 @@
+[submodule "external/WebMall"]
+	path = external/WebMall
+	url = https://github.com/wbsg-uni-mannheim/WebMall
+[submodule "external/AgentOccam"]
+	path = external/AgentOccam
+	url = https://github.com/amazon-science/AgentOccam
+[submodule "external/BrowserAgent"]
+	path = external/BrowserAgent
+	url = https://github.com/TIGER-AI-Lab/BrowserAgent
