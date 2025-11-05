@@ -1,96 +1,45 @@
-# ---- vars ----
-NETWORK ?= webmall_net
-ENV ?= .env
+# ========================================
+# WebMall Agents Makefile (root, thin)
+# ========================================
 
-BROWSER_COMPOSE ?= docker-compose-browser.yaml
-BROWSER_PROJ ?= webmall-agents-browser
+MAKEFLAGS += --warn-undefined-variables
+SHELL := /bin/sh
+.DEFAULT_GOAL := help
 
-OCCAM_COMPOSE   ?= docker-compose-occam.yaml
-OCCAM_PROJ ?= webmall-agents-occam
+include make/common.mk
+include make/env.mk
+include make/webmall.mk
+include make/browser.mk
+include make/browseruse.mk
+include make/occam.mk
+include make/cleanup.mk
 
-WEBMALL_REPO ?= external/WebMall/docker_all
-
-# ---- common ----
-.PHONY: net
-net:
-	docker network create $(NETWORK) || true
-
-.PHONY: submodules-init
-submodules-init:
-	git submodule update --init --recursive
-
-.PHONY: submodules-update
-submodules-update:
-	git submodule update --remote --recursive
-
-# ---- WebMall local (их compose) ----
-.PHONY: up-local-webmall
-up-local-webmall:
-	@[ -d "$(WEBMALL_REPO)" ] || (echo "Submodule $(WEBMALL_REPO) not found"; exit 1)
-	cd $(WEBMALL_REPO) && docker compose up -d
-	@echo ">>> Set WEBMALL_BASE_URL in .env to local URL (e.g., http://localhost:8080)"
-
-# ---- Browser stack ----
-.PHONY: up-browser
-up-browser: net
-	COMPOSE_PROFILES=$${COMPOSE_PROFILES:-runner,agents} \
-	docker compose -p $(BROWSER_PROJ) -f $(BROWSER_COMPOSE) --env-file $(ENV) up -d --build
-
-.PHONY: down-browser
-down-browser:
-	docker compose -p $(BROWSER_PROJ) -f $(BROWSER_COMPOSE) --env-file $(ENV) down
-
-.PHONY: ps-browser
-ps-browser:
-	docker compose -p $(BROWSER_PROJ) -f $(BROWSER_COMPOSE) ps
-
-.PHONY: logs-browser
-logs-browser:
-	docker compose -p $(BROWSER_PROJ) -f $(BROWSER_COMPOSE) logs -f --tail=200
-
-# ---- Occam stack ----
-.PHONY: up-occam
-up-occam: net
-	COMPOSE_PROFILES=$${COMPOSE_PROFILES:-runner,agents} \
-	docker compose -p $(OCCAM_PROJ) -f $(OCCAM_COMPOSE) --env-file $(ENV) up -d --build
-
-.PHONY: down-occam
-down-occam:
-	docker compose -p $(OCCAM_PROJ) -f $(OCCAM_COMPOSE) --env-file $(ENV) down
-
-.PHONY: ps-occam
-ps-occam:
-	docker compose -p $(OCCAM_PROJ) -f $(OCCAM_COMPOSE) ps
-
-.PHONY: logs-occam
-logs-occam:
-	docker compose -p $(OCCAM_PROJ) -f $(OCCAM_COMPOSE) logs -f --tail=200
-
-# ---- both stacks helpers ----
-.PHONY: up-both
-up-both: up-browser up-occam
-
-.PHONY: down-both
-down-both: down-browser down-occam
-
-# ---- quick runs via runner (каждый стэк имеет свой runner) ----
-.PHONY: run-browser
-run-browser:
-	docker compose -p $(BROWSER_PROJ) -f $(BROWSER_COMPOSE) exec runner \
-	  python -u main.py run \
-	    --agent browser \
-	    --base-url "$$(grep -E '^WEBMALL_BASE_URL=' $(ENV) | cut -d= -f2-)" \
-	    --taskset "$$(grep -E '^TASKSET_PATH=' $(ENV) | cut -d= -f2-)" \
-	    --episodes $${EPISODES:-3} \
-	    --output "$$(grep -E '^RESULTS_DIR=' $(ENV) | cut -d= -f2-)/browser"
-
-.PHONY: run-occam
-run-occam:
-	docker compose -p $(OCCAM_PROJ) -f $(OCCAM_COMPOSE) exec runner \
-	  python -u main.py run \
-	    --agent occam \
-	    --base-url "$$(grep -E '^WEBMALL_BASE_URL=' $(ENV) | cut -d= -f2-)" \
-	    --taskset "$$(grep -E '^TASKSET_PATH=' $(ENV) | cut -d= -f2-)" \
-	    --episodes $${EPISODES:-3} \
-	    --output "$$(grep -E '^RESULTS_DIR=' $(ENV) | cut -d= -f2-)/occam"
-
+.PHONY: help
+help:
+	@echo "Make targets:"
+	@echo "  env-init-root                 Create ./.env from ./.env.example"
+	@echo "  env-init-runner               Create runner/.env from runner/.env.example"
+	@echo "  env-init-both                 Create both env files"
+	@echo "    (use FORCE=1 to overwrite existing)"
+	@echo "  env-check-root                Validate root .env (used by compose)"
+	@echo "  env-check-compose             Show key values from ./.env for compose"
+	@echo "  env-print-root                Print root .env (masking OPENAI key)"
+	@echo "  env-print-runner              Print runner/.env (masking OPENAI key)"
+	@echo "  submodules-init               Init git submodules (recursive)"
+	@echo "  submodules-update             Update submodules to remote (recursive)"
+	@echo "  net                           Create docker network $$(printf "%s" "$(NETWORK)")"
+	@echo ""
+	@echo "  up-browser / down-browser / ps-browser / logs-browser / browser-run-once / browser-attach-webmall"
+	@echo "  up-browseruse / down-browseruse / ps-browseruse / logs-browseruse / browseruse-run-once / browseruse-attach-webmall"
+	@echo "  up-occam / down-occam / ps-occam / logs-occam / occam-attach-webmall"
+	@echo "  up-agents / down-agents"
+	@echo ""
+	@echo "  up-webmall / down-webmall / ps-webmall / logs-webmall"
+	@echo "  webmall-init-admins / webmall-seed-sample / webmall-fix-urls / webmall-wp-pass SHOP=1 PASS=newpass"
+	@echo "  webmall-reset-all / webmall-nuke"
+	@echo ""
+	@echo "  clean-results / prune-dangling / nuke-all (with NUKE_IMAGES/NUKE_RESULTS)"
+	@echo ""
+	@echo "Tips:"
+	@echo "  - 'FORCE=1 make env-init-<target>' to overwrite existing env files"
+	@echo "  - All docker compose commands read env from: $$(printf "%s" "$(ENV)")"

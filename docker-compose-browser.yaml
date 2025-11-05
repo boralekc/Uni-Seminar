@@ -1,47 +1,46 @@
-name: webmall-agents-browser
+version: "3.9"
 
 services:
-  runner:
-    build:
-      context: ./runner
-    image: webmall/runner:latest
-    env_file: .env
-    environment:
-      - WEBMALL_BASE_URL=${WEBMALL_BASE_URL}
-      - TASKSET_PATH=/app/tasksets_override/task_sets.json
-      - RESULTS_DIR=/app/results
-    volumes:
-      - ./tasksets:/app/tasksets_override:ro
-      - ./results:/app/results
-    networks:
-      - labnet
-      - webmall_ext
-    profiles: [ "runner" ]
-    command: ["bash","-lc","python -u main.py --help || true; tail -f /dev/null"]
-
-  browseragent:
+  browser-tests:
     build:
       context: .
       dockerfile: ./docker/BrowserAgent.Dockerfile
-    image: browseragent:${BROWSER_TAG:-dev}
+    image: browser:local
     env_file: .env
     environment:
       - WEBMALL_BASE_URL=${WEBMALL_BASE_URL}
-      - TASKSET_PATH=/tasksets/task_sets.json
-      - RESULTS_DIR=/results/browser
+      - TASKSET_PATH=${TASKSET_HOST_PATH}
+      - RESULTS_DIR=/results
+      - PYTHONPATH=/ext/webmall:/ext/core
+      - FRONTEND_URL=${FRONTEND_URL}
+      - SHOP1_URL=${SHOP1_URL}
+      - SHOP2_URL=${SHOP2_URL}
+      - SHOP3_URL=${SHOP3_URL}
+      - SHOP4_URL=${SHOP4_URL}
+      - EPISODES=${EPISODES:-1}
     volumes:
-      - ./tasksets:/tasksets:ro
-      - ./results/browser:/results/browser
-    networks:
-      - labnet
-      - webmall_ext
-    profiles: [ "agents" ]
-    command: ["bash","-lc","echo 'BrowserAgent container ready'; tail -f /dev/null"]
+      - ${BGYM_WEBMALL_DIR}:/ext/webmall:ro
+      - ${BGYM_CORE_DIR}:/ext/core:ro
+      - ./results/browser:/results
+    networks: [labnet]
+    command:
+      - bash
+      - -lc
+      - |
+        set -euo pipefail
+        python /app/browseragent/run_browseragent.py \
+          --taskset /tasksets/task_sets.json \
+          --results /results \
+          --episodes ${EPISODES:-1}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import sys; print(sys.getfilesystemencoding())' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
 
 networks:
   labnet:
     external: true
     name: ${NETWORK}
-  webmall_ext:
-    external: true
-    name: ${WEBMALL_NET}

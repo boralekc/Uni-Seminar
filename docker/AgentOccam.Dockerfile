@@ -2,7 +2,7 @@ FROM mcr.microsoft.com/playwright/python:v1.48.0-jammy
 
 WORKDIR /app/agentoccam
 COPY external/AgentOccam/ /app/agentoccam/
-COPY agents/agentoccam/run_webmall_smoke.py /app/agentoccam/run_webmall_smoke.py
+COPY runner/run_agentoccam.py /app/agentoccam/run_agentoccam.py
 
 RUN pip install --no-cache-dir playwright==1.48.0
 RUN python -m playwright install chromium
