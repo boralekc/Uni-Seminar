@@ -2,7 +2,6 @@ FROM mcr.microsoft.com/playwright/python:v1.48.0-jammy
 
 WORKDIR /app/browseruse
 
-COPY external/BrowserAgent/ /app/browseruse/
 COPY runner/run_browseruse_webmall_study.py /app/browseruse/run_browseruse_webmall_study.py
 
 RUN pip install --no-cache-dir \
