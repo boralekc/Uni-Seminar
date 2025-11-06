@@ -6,7 +6,110 @@ Ziel ist die Durchführung und Analyse von automatisierten Benchmark-Tests in ei
 
 ---
 
-## 🔧 1. Repository klonen
+## ⚙️ Alles basiert auf GNU Make
+
+Das gesamte Projekt wird über **GNU Make** gesteuert.  
+Alle wichtigen Befehle (Erstellen, Starten, Stoppen, Löschen, Logs ansehen usw.) sind in **Makefiles** definiert.
+
+Das bedeutet:
+- Kein manuelles Eintippen langer Docker-Befehle.  
+- Eine einzige Schnittstelle (`make`) reicht für alle Aufgaben.  
+- Konsistente und reproduzierbare Umgebung auf jedem System.
+
+Beispiele:
+
+```bash
+make env-init-root
+make env-init-runner
+make webmall-restore-all
+make up-browser
+make logs-browser
+make down-both
+```
+
+---
+
+## 💻 1. Installation unter Windows (mit WSL2)
+
+Da Windows kein nativer Linux-Shell-Interpreter ist, muss **WSL2 (Windows Subsystem for Linux)** installiert werden.  
+Dies ermöglicht die Verwendung von `make`, `bash`, `docker` und anderen Linux-Tools direkt unter Windows.
+
+### 🔹 Schritt 1 – WSL2 aktivieren
+
+Öffne PowerShell **als Administrator** und führe aus:
+
+```powershell
+wsl --install
+```
+
+Nach der Installation starte den Computer neu.
+
+### 🔹 Schritt 2 – Ubuntu als Standarddistribution setzen
+
+```powershell
+wsl --set-default Ubuntu
+```
+
+### 🔹 Schritt 3 – In Ubuntu wechseln und Make installieren
+
+Öffne anschließend Ubuntu (z. B. über das Startmenü) und führe aus:
+
+```bash
+sudo apt update
+sudo apt install -y make git docker.io docker-compose
+```
+
+> ⚠️ Achte darauf, dass Docker Desktop für Windows **aktiviert ist** und **WSL2-Integration** in den Einstellungen (Resources → WSL Integration) eingeschaltet ist.
+
+Danach kannst du alle Befehle wie gewohnt verwenden, z. B.:
+
+```bash
+make env-init-both
+make webmall-restore-all
+make up-both
+```
+
+---
+
+## 🐧 2. Installation unter Linux
+
+Auf nativen Linux-Systemen (Ubuntu, Debian, Fedora usw.) genügt es, folgende Pakete zu installieren:
+
+```bash
+sudo apt update
+sudo apt install -y make git docker.io docker-compose
+```
+
+Anschließend:
+
+```bash
+git clone --recurse-submodules <dein-repo-url>
+cd webmall-agents-lab
+cp .env.example .env
+make env-init-both
+make webmall-restore-all
+make up-both
+```
+
+---
+
+## 🌐 3. Zugriff auf externe WebMall-Shops (lokaler Browserzugriff)
+
+Wenn du über deinen lokalen Browser auf die WebMall-Frontends zugreifen möchtest, überschreibe in deiner `.env`-Datei folgende Variablen:
+
+```bash
+FRONTEND_URL=http://localhost:${FRONTEND_PORT}
+SHOP1_URL=http://localhost:${SHOP1_PORT}
+SHOP2_URL=http://localhost:${SHOP2_PORT}
+SHOP3_URL=http://localhost:${SHOP3_PORT}
+SHOP4_URL=http://localhost:${SHOP4_PORT}
+```
+
+> Danach kannst du die Shops unter `http://localhost:8081`, `http://localhost:8082` usw. aufrufen (je nach Port-Konfiguration).
+
+---
+
+## 🧩 4. Repository klonen
 
 ```bash
 git clone --recurse-submodules <dein-repo-url>
@@ -18,30 +121,21 @@ cp .env.example .env
 
 ---
 
-## ⚙️ 2. Umgebung vorbereiten
+## 🔧 5. Umgebung vorbereiten
 
 Erstelle und überprüfe die `.env`-Dateien:
 
 ```bash
-# Lokale .env aus Vorlage erzeugen
 make env-init
-
-# Wichtige Variablen prüfen
 make env-check
-
-# Separate Umgebungen für Root und Runner
 make env-init-root
 make env-init-runner
-
-# oder beides gleichzeitig
 make env-init-both
 ```
 
 ---
 
-## 🏗️ 3. WebMall installieren
-
-Lade die offiziellen Backups und stelle sie lokal wieder her:
+## 🏗️ 6. WebMall installieren
 
 ```bash
 make webmall-restore-all
@@ -52,26 +146,21 @@ Dadurch werden vier Shops (Shop 1–4) mit WordPress + WooCommerce lokal bereitg
 
 ---
 
-## 🧹 4. WebMall löschen (optional)
+## 🧹 7. WebMall löschen (optional)
 
 ```bash
-# Container + Volumes entfernen
 make webmall-reset-all
-
-# Zusätzlich Docker-Images löschen
 make webmall-nuke NUKE_IMAGES=1
-
-# Komplett alles löschen (WebMall + Agents + Netzwerk + Ergebnisse)
 make nuke-all NUKE_RESULTS=1
 ```
 
 ---
 
-## 🧪 5. BrowserAgent-Tests ausführen
+## 🧪 8. BrowserAgent-Tests ausführen
 
 ```bash
-make up-browser      # Startet den BrowserAgent-Stack
-make logs-browser    # Zeigt die Logs live an
+make up-browser
+make logs-browser
 ```
 
 Ergebnisse werden automatisch unter:
@@ -84,24 +173,17 @@ gespeichert.
 
 ---
 
-## ⚛️ 6. Occam-Stack starten
+## ⚛️ 9. Occam-Stack starten
 
 ```bash
 make up-occam
 make logs-occam
-```
-
-Beide Stacks (BrowserAgent + Occam) gleichzeitig starten:
-
-```bash
 make up-both
 ```
 
 ---
 
-## 🤖 7. BrowserUse-Benchmark starten
-
-Führt das Python-Skript `run_browseruse_webmall_study.py` im Container aus:
+## 🤖 10. BrowserUse-Benchmark starten
 
 ```bash
 make up-browseruse
@@ -110,17 +192,17 @@ make logs-browseruse
 
 ---
 
-## 🛑 8. Container stoppen
+## 🛑 11. Container stoppen
 
 ```bash
-make down-browser     # Nur BrowserAgent
-make down-occam       # Nur Occam
-make down-both        # Beide gleichzeitig
+make down-browser
+make down-occam
+make down-both
 ```
 
 ---
 
-## 📁 9. Ergebnisse
+## 📁 12. Ergebnisse
 
 Alle Resultate (Logs, JSON-Ausgaben, Screenshots) werden im lokalen Ordner gespeichert:
 
@@ -130,15 +212,10 @@ Alle Resultate (Logs, JSON-Ausgaben, Screenshots) werden im lokalen Ordner gespe
 
 ---
 
-## 🧼 10. Alte Container bereinigen (falls Reste vorhanden)
-
-Falls noch alte WebMall-Container aus früheren Tests laufen:
+## 🧼 13. Alte Container bereinigen (falls Reste vorhanden)
 
 ```bash
-# Alte WebMall-Container entfernen
 docker compose -p docker_all -f external/WebMall/docker_all/docker-compose.yml down -v || true
-
-# Hängenden Frontend-Container beenden
 docker rm -f WebMall_frontend || true
 ```
 
@@ -164,7 +241,7 @@ docker rm -f WebMall_frontend || true
 ## 👥 Projektstruktur
 
 ```
-webmall-agents-lab/
+Uni-Seminar/
 ├── agents/                  # Agenten-Skripte (Browser, Occam, etc.)
 ├── external/                # Submodule (WebMall, BrowserGym)
 ├── make/                    # Makefile-Module

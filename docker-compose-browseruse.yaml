@@ -1,47 +1,42 @@
-# docker-compose-browseruse.yaml
 version: "3.9"
 
 services:
-  browseragent:
+  browseruse:
     image: browseruse:local
     build:
       context: .
       dockerfile: ./docker/BrowserUse.Dockerfile
+
     env_file: ./.env
     environment:
-      # КЛЮЧИ/URL'ы
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       FRONTEND_URL: ${FRONTEND_URL}
       SHOP1_URL: ${SHOP1_URL}
       SHOP2_URL: ${SHOP2_URL}
       SHOP3_URL: ${SHOP3_URL}
       SHOP4_URL: ${SHOP4_URL}
-
-      # Путь к JSON с таск-сетами ВНУТРИ контейнера
-      # Если в .env нет TASKSET_HOST_PATH — возьмём дефолт.
-      TASKSET_PATH: ${TASKSET_HOST_PATH_USE}
-
-      # Куда складывать результаты внутри контейнера
+      TASKSET_PATH: /app/tasksets/subset_30_tasks.json
       RESULTS_DIR: ${RESULTS_DIR:-/app/results}
+
     volumes:
       - ./tasksets:/app/tasksets:ro
       - ./results:/app/results
       - ./runner:/app/runner:ro
+    networks: [labnet]
     command:
       - bash
       - -lc
-      - |
-        set -euo pipefail
-        python /app/browseruser/run_browseruse_webmall_study.py \
-          --results /results \
-          --episodes ${EPISODES:-1}
+      - >
+        set -euo pipefail;
+        python /app/runner/run_browseruse_webmall_study.py
 
     healthcheck:
-      test: ["CMD-SHELL", "python -c 'import sys; print(sys.getfilesystemencoding())' || exit 1"]
+      test: ["CMD-SHELL", "python -c 'print(\"ok\")' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 20s
+
     restart: unless-stopped
 
 networks:
