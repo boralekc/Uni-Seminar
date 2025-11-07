@@ -1,12 +1,11 @@
-version: "3.9"
-
+# docker-compose for BrowserUse runner on WebMall
+# Keep it minimal and compatible with Docker Compose v2 (no 'version:' key)
 services:
-  browseruse:
+  browseragent:
     image: browseruse:local
     build:
       context: .
       dockerfile: ./docker/BrowserUse.Dockerfile
-
     env_file: ./.env
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
@@ -15,31 +14,29 @@ services:
       SHOP2_URL: ${SHOP2_URL}
       SHOP3_URL: ${SHOP3_URL}
       SHOP4_URL: ${SHOP4_URL}
-      TASKSET_PATH: /app/tasksets/subset_30_tasks.json
-      RESULTS_DIR: ${RESULTS_DIR:-/app/results}
+
+      TASKSET_PATH: /data/tasksets.json
+      RESULTS_DIR: /results
+
+    shm_size: "2gb"
+    ulimits:
+      memlock: -1
+      nofile: 65535
 
     volumes:
-      - ./tasksets:/app/tasksets:ro
-      - ./results:/app/results
-      - ./runner:/app/runner:ro
-    networks: [labnet]
-    command:
-      - bash
-      - -lc
-      - >
-        set -euo pipefail;
-        python /app/runner/run_browseruse_webmall_study.py
+      - ./runner/run_browseruse_webmall_study.py:/app/runner/run_browseruse_webmall_study.py:ro
+      - ${TASKSET_HOST_PATH_USE:-./tasksets/subset_30_tasks.json}:/data/tasksets.json:ro
+      - ${RESULTS_DIR:-./results}:/results
 
-    healthcheck:
-      test: ["CMD-SHELL", "python -c 'print(\"ok\")' || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
+    working_dir: /app/runner
 
-    restart: unless-stopped
+    command: bash -lc "python /app/runner/run_browseruse_webmall_study.py"
+
+    networks:
+      - default
+      - webmall_external
 
 networks:
-  labnet:
+  webmall_external:
     external: true
-    name: ${NETWORK}
+    name: ${NETWORK:-webmall-local_webmall}

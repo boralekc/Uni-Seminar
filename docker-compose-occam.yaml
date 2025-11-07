@@ -18,9 +18,13 @@ services:
       - SHOP3_URL=${SHOP3_URL}
       - SHOP4_URL=${SHOP4_URL}
       - EPISODES=${EPISODES:-1}
+    shm_size: "2gb"
+    ulimits:
+      memlock: -1
+      nofile: 65535
     volumes:
-      - ${BGYM_WEBMALL_DIR}:/ext/webmall:ro
-      - ${BGYM_CORE_DIR}:/ext/core:ro
+      - ${BGYM_PATH}:/ext/webmall:ro
+      - ${BGYM_PATH}:/ext/core:ro
       - ./results/browser:/results
     networks: [labnet]
     command:

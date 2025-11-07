@@ -19,8 +19,7 @@ Das bedeutet:
 Beispiele:
 
 ```bash
-make env-init-root
-make env-init-runner
+make env-init
 make webmall-restore-all
 make up-browser
 make logs-browser
@@ -64,7 +63,7 @@ sudo apt install -y make git docker.io docker-compose
 Danach kannst du alle Befehle wie gewohnt verwenden, z. B.:
 
 ```bash
-make env-init-both
+make env-init
 make webmall-restore-all
 make up-both
 ```
